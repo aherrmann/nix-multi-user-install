@@ -108,8 +108,7 @@ builduid=30000
 builduserhome="/var/empty"
 buildusershell="/sbin/nologin"
 numbuildusers=10
-#nixusergroup="nixusers"
-nixusergroup=
+nixusergroup="nixusers"
 
 do_checks
 
