@@ -116,6 +116,17 @@ do_checks
 
 ## Install Nix Store ######################################
 create_users() {
+  if [ -n "$nixusergroup" ]; then
+    info "Checking for nix-user group..."
+    if ! egrep -q "^$nixusergroup:" /etc/group; then
+      warning "The nix-user group \`$nixusergroup' does not exist."
+      if confirm "Create it?"; then
+        info "Creating group \`$nixusergroup'..."
+        groupadd $nixusergroup
+      fi
+    fi
+  fi
+
   local exists=
   info "Creating build group and users..."
 
