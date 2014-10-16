@@ -108,6 +108,7 @@ builduid=30000
 builduserhome="/var/empty"
 buildusershell="/sbin/nologin"
 numbuildusers=10
+nixusergroup="nixusers"
 
 do_checks
 
@@ -235,9 +236,11 @@ configure_nix() {
 # Source function library.
 . /etc/init.d/functions
 
+nixusergroup=$nixusergroup  # Not empty => Members only access to nix-daemon
 LOCKFILE=/var/lock/subsys/nix-daemon
 prog=nix-daemon
 exec=/root/.nix-profile/bin/nix-daemon
+socket=$pref/var/nix/daemon-socket
 
 start() {
         echo -n "Starting the Nix daemon: "
@@ -245,6 +248,10 @@ start() {
         RETVAL=\$?
         echo
         [ \$RETVAL -eq 0 ] && touch "\$LOCKFILE"
+        if [ -n "\$nixusergroup" ]; then
+          chgrp \$nixusergroup \$socket
+          chmod 0770 \$socket
+        fi
         return \$RETVAL
 }
 
