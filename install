@@ -340,6 +340,8 @@ install-nix() {
 }
 
 nix() {
+  # Note: The order matters!
+  # The user-profile should shadow the system profile.
   local profs="$dest/var/nix/profiles/default \$HOME/.nix-profile"
   # Activate Nix for current user.
   for i in \$profs; do
