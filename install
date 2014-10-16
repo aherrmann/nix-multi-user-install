@@ -252,7 +252,7 @@ nixusergroup=$nixusergroup  # Not empty => Members only access to nix-daemon
 LOCKFILE=/var/lock/subsys/nix-daemon
 prog=nix-daemon
 exec=/root/.nix-profile/bin/nix-daemon
-socket=$pref/var/nix/daemon-socket
+socket=$dest/var/nix/daemon-socket
 
 start() {
         echo -n "Starting the Nix daemon: "
@@ -368,7 +368,7 @@ nix() {
     export MANPATH="\$i/share/man:\$MANPATH"
   done
   # Daemon mode?
-  socket=$pref/var/nix/daemon-socket/socket
+  socket=$dest/var/nix/daemon-socket/socket
   if [ -S "\$socket" ]; then
     export NIX_REMOTE=daemon
   else
