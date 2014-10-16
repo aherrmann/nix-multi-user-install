@@ -355,10 +355,12 @@ nix() {
     export PATH="\$i/bin:\$PATH"
     export MANPATH="\$i/share/man:\$MANPATH"
   done
-  if [ \$USER == root ]; then
-    export NIX_REMOTE=
-  else
+  # Daemon mode?
+  socket=$pref/var/nix/daemon-socket/socket
+  if [ -S "\$socket" ]; then
     export NIX_REMOTE=daemon
+  else
+    export NIX_REMOTE=
   fi
 
   unset -f install-nix
