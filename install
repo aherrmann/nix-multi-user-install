@@ -1,0 +1,390 @@
+#!/bin/bash
+
+## Config #################################################
+verbose=1  # Set to 1 for verbose output
+force=  # Set to 1 to assume user confirmation
+
+## Tools ##################################################
+info() {
+  if ! [ -z "$verbose" ]; then
+    echo 'info:' $@
+  fi
+}
+
+warning() {
+  echo 'warning:' $@ >&2
+}
+
+error() {
+  echo 'error:' $@ >&2
+  exit 1
+}
+
+confirm() {
+  local choice
+  if [ -z "$force" ]; then
+    echo $@ >&2
+    while true; do
+      read -p 'Yes|No|Abort: ' -n 1 choice >&2
+      case "$choice" in
+        y|Y )
+          echo ' continuing...' >&2
+          return 0
+          ;;
+        n|N )
+          echo ' skipping...' >&2
+          return 1
+          ;;
+        a|A )
+          echo ' aborting!!!' >&2
+          exit 1
+          ;;
+        * )
+          echo ' invalid input' >&2
+          ;;
+      esac
+    done
+  fi
+}
+
+## Obtain Nix Build #######################################
+system="x86_64-linux"
+nixver="1.7"
+tarball="nix-${nixver}-${system}.tar.bz2"
+url="https://nixos.org/releases/nix/nix-${nixver}/${tarball}"
+unpack="nix-binary-tarball-unpack"
+
+obtain_build() {
+  if ! type -p curl > /dev/null; then
+    error "You do not have \`curl' installed," \
+      "which I need to download the binary tarball"
+  fi
+
+  info "Downloading Nix binary tarball for $system from \`$url'..."
+  if ! curl -L -o "$tarball" "$url"; then
+      error "Failed to download \`$url'"
+  fi
+
+  info "unpacking binary tarball..."
+  rm -rf "$unpack"
+  mkdir "$unpack"
+  tar xf "$tarball" -C "$unpack"
+}
+
+remove_build() {
+  rm -rf "$unpack" "$tarball"
+}
+
+obtain_build
+
+
+## Check & Configure Installer ############################
+# Extract nix path from official install script
+find_nix_path() {
+  local nix
+  nix="$(head -10 ${unpack}/*/install | sed -rne 's/nix="([^"]+)"/\1/p')"
+  if [ -z "$nix" ]; then
+    error "Could not read path of nix derivation"
+  fi
+  echo "$nix"
+}
+
+do_checks() {
+  if ! [ -e ${unpack}/*/.reginfo ]; then
+    error "Incomplete installer (.reginfo is missing)"
+  fi
+
+  if [ "$(id -u)" -ne 0 ]; then
+    error "Need to be root user"
+  fi
+}
+
+dest="/nix"
+nix="$(find_nix_path)"
+buildgroup="nixbld"
+buildgid=30000
+builduser_="nixbld"
+builduid=30000
+builduserhome="/var/empty"
+buildusershell="/sbin/nologin"
+numbuildusers=10
+
+do_checks
+
+
+## Install Nix Store ######################################
+create_users() {
+  local exists=
+  info "Creating build group and users..."
+
+  # Do checks
+  if egrep -q "^$buildgroup:|:$buildgid:[^:]:$" /etc/group; then
+    warning "Group \`$buildgroup', or gid \`$buildgid' exists already."
+    exists=1
+  fi
+  for i in $(seq 1 $numbuildusers); do
+    local user=$builduser_$i uid=$(expr $builduid + $i)
+    if egrep -q "^$user:|^([^:]*:){2}$uid:" /etc/passwd; then
+      warning "User \`$user', or uid \`$uid' exists already."
+      exists=1
+    fi
+  done
+  if [ -e "$builduserhome" ]; then
+    warning "The build-user home \`$builduserhome' exists."
+    exists=1
+  fi
+  if [ ! -x "$buildusershell" ]; then
+    warning "The build-user shell \`$buildusershell' does not exist."
+    exists=1
+  fi
+  if [ -n "$exists" ] && ! confirm "Create group and users anyway?"; then
+    return
+  fi
+
+  # Create group and users
+  info "Adding group \`$buildgroup' with gid \`$buildgid'."
+  groupadd -g $buildgid $buildgroup
+  for i in $(seq 1 $numbuildusers); do
+    local user=$builduser_$i uid=$(expr $builduid + $i)
+    info "Adding user \`$user' with uid \`$uid'."
+    useradd -M -N -r -u $uid \
+      -g $buildgroup -G $buildgroup -c "Nix build user $i" \
+      -d /var/empty -s /bin/false $user
+  done
+}
+
+install_nix_files() {
+  local srcstore=$(echo $unpack/*/store)
+  info "Installing the Nix store..."
+  if ! [ -e "$dest" ] || confirm "Directory \`$dest' exists! Overwrite?"; then
+    rm -rf "$dest"
+    info "Creating \`$dest/store'."
+    mkdir -p "$dest/store"
+    info "Copying items into \`$dest/store'."
+    info $srcstore
+    for f in $srcstore/*; do
+      i="${f#$srcstore/}"
+      i_tmp="$dest/store/$i.$$"
+      if [ -e "$i_tmp" ]; then
+        rm -rf "$i_tmp"
+      fi
+      if ! [ -e "$dest/store/$i" ]; then
+        cp -Rp "$srcstore/$i" "$i_tmp"
+        mv "$i_tmp" "$dest/store/$i"
+      fi
+    done
+  fi
+  info "Adjusting permissions of \`$dest/store'..."
+  chgrp -R $buildgroup "$dest/store"
+  chmod 1775 "$dest/store"
+  info "Creating user profile and gc-root base directory."
+  mkdir -p "$dest/var/nix/profiles/per-user"
+  mkdir -p "$dest/var/nix/gcroots/per-user"
+  chmod 1777 "$dest/var/nix/profiles/per-user"
+  chmod 1777 "$dest/var/nix/gcroots/per-user"
+}
+
+init_store_db() {
+  info "Initializing Nix database..."
+  unset NIX_REMOTE
+  if ! $nix/bin/nix-store --init; then
+    error "Failed to initialize database."
+  fi
+  if ! $nix/bin/nix-store --load-db < $unpack/*/.reginfo; then
+    error "Unable to register valid paths."
+  fi
+}
+
+init_root_profile() {
+  info "Configuring root user profile."
+  source $nix/etc/profile.d/nix.sh
+
+  if ! $nix/bin/nix-env -i $nix; then
+    error "Unable to install Nix into default profile."
+  fi
+
+  if ! $nix/bin/nix-channel --list | grep -q "^nixpkgs "; then
+    $nix/bin/nix-channel --add http://nixos.org/channels/nixpkgs-unstable
+  fi
+  $nix/bin/nix-channel --update nixpkgs
+}
+
+configure_nix() {
+  local conf="/etc/nix/nix.conf"
+  mkdir -p /etc/nix
+  if ! [ -e "$conf" ] || confirm "Overwrite \`$conf'?"; then
+    rm /etc/nix/nix.conf
+  fi
+  echo "build-users-group = $buildgroup" >> /etc/nix/nix.conf
+
+  local script="/etc/init.d/nix-daemon"
+  if ! [ -e "$script" ] || confirm "Overwrite \`$script'?"; then
+    info "Installing \`$script'."
+    cat > "$script" << EOF
+#!/bin/bash
+#
+#       /etc/rc.d/init.d/nix-daemon
+#
+#       Nix-daemon runs nixblds to build nix-store items.
+#
+# chkconfig: 2345 60 40
+# description: Nix-daemon runs nixblds to build nix-store items.
+# processname: nix-daemon
+# config: /etc/nix/nix.conf
+
+# Source function library.
+. /etc/init.d/functions
+
+LOCKFILE=/var/lock/subsys/nix-daemon
+prog=nix-daemon
+exec=/root/.nix-profile/bin/nix-daemon
+
+start() {
+        echo -n "Starting the Nix daemon: "
+        daemon "\$exec" &
+        RETVAL=\$?
+        echo
+        [ \$RETVAL -eq 0 ] && touch "\$LOCKFILE"
+        return \$RETVAL
+}
+
+stop() {
+        echo -n "Shutting down nix-daemon: "
+        killproc -d 10 "\$exec"
+        RETVAL=\$?
+        [ \$RETVAL -eq 0 ] && rm -f "\$LOCKFILE"
+        return \$RETVAL
+}
+
+rhstatus() {
+        status -l "\$LOCKFILE" "\$exec"
+}
+
+case "\$1" in
+    start)
+        if rhstatus >/dev/null 2>&1; then
+            echo "error: \$prog already running." >&2
+            exit 1
+        else
+            start
+        fi
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        rhstatus
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    reload)
+        stop
+        start
+        ;;
+    condrestart)
+        rhstatus >/dev/null 2>&1 || exit 0
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: nix-daemon {start|stop|status|reload|restart"
+        exit 1
+        ;;
+esac
+exit \$?
+EOF
+  fi
+  chmod +x "$script"
+
+  local script=/etc/profile.d/nix.sh
+  if ! [ -e "$script" ] || confirm "Overwrite \`$script'?"; then
+    info "Installing \`$script'."
+    cat > "$script" << EOF
+#!/bin/sh
+install-nix() {
+  # Install Nix for the current user.
+  if [ \$USER == root ]; then
+    local prof=/nix/var/nix/profiles/default
+    ln -s \$prof \$HOME/.nix-profile
+    mkdir -p \$HOME/.nix-defexpr
+    rm -f \$HOME/.nix-defexpr/channels
+    ln -s /nix/var/nix/profiles/per-user/root/channels \\
+      \$HOME/.nix-defexpr/channels
+  else
+    # Create user profile and gc-roots.
+    local prof=/nix/var/nix/profiles/per-user/\$USER
+    local gc=/nix/var/nix/gcroots/per-user/\$USER
+    mkdir -m 0775 -p "\$prof"
+    mkdir -m 0775 -p "\$gc"
+    if [ "\$(stat --printf '%u' \$prof)" != "\$(id -u)" ]; then
+      echo "warning: Bad ownership on \\\`\$prof'." >&2
+    fi
+    if [ "\$(stat --printf '%u' \$gc)" != "\$(id -u)" ]; then
+      echo "warning: Bad ownership on \\\`\$gc'." >&2
+    fi
+    # Create nix-profile in home dir.
+    rm -f \$HOME/.nix-profile
+    ln -s "\$prof/profile" \$HOME/.nix-profile
+    echo "http://nixos.org/channels/nixpkgs-unstable nixpkgs" \\
+      >> \$HOME/.nix-channels
+    mkdir -p \$HOME/.nix-defexpr
+    rm -f \$HOME/.nix-defexpr/channels_root
+    ln -s /nix/var/nix/profiles/per-user/root/channels \\
+      \$HOME/.nix-defexpr/channels_root
+  fi
+  echo "Installed Nix for you. To activate call \\\`nix'."
+
+  unset -f install-nix
+}
+
+nix() {
+  local profs="/nix/var/nix/profiles/default \$HOME/.nix-profile"
+  # Activate Nix for current user.
+  for i in \$profs; do
+    export PATH="\$i/bin:\$PATH"
+    export MANPATH="\$i/share/man:\$MANPATH"
+  done
+  if [ \$USER == root ]; then
+    export NIX_REMOTE=
+  else
+    export NIX_REMOTE=daemon
+  fi
+
+  unset -f install-nix
+  unset -f nix
+}
+EOF
+  fi
+}
+
+install_daemon() {
+  info "Installing daemon."
+  chkconfig --add nix-daemon
+}
+
+activate_nix() {
+  /etc/init.d/nix-daemon start
+  source /etc/profile.d/nix.sh
+  nix
+}
+
+final_message() {
+  info "Nix was succesfully installed."
+  info "To activate Nix in future session execute \`nix'.'"
+  info "Normal users should execute \`nix-install' to install Nix,"
+  info "  and \`nix' to activate it."
+}
+
+create_users
+install_nix_files
+init_store_db
+init_root_profile
+configure_nix
+install_daemon
+activate_nix
+final_message
+
+## Cleanup ################################################
+remove_build
