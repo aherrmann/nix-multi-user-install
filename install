@@ -306,16 +306,16 @@ EOF
 install-nix() {
   # Install Nix for the current user.
   if [ \$USER == root ]; then
-    local prof=/nix/var/nix/profiles/default
+    local prof=$dest/var/nix/profiles/default
     ln -s \$prof \$HOME/.nix-profile
     mkdir -p \$HOME/.nix-defexpr
     rm -f \$HOME/.nix-defexpr/channels
-    ln -s /nix/var/nix/profiles/per-user/root/channels \\
+    ln -s $dest/var/nix/profiles/per-user/root/channels \\
       \$HOME/.nix-defexpr/channels
   else
     # Create user profile and gc-roots.
-    local prof=/nix/var/nix/profiles/per-user/\$USER
-    local gc=/nix/var/nix/gcroots/per-user/\$USER
+    local prof=$dest/var/nix/profiles/per-user/\$USER
+    local gc=$dest/var/nix/gcroots/per-user/\$USER
     mkdir -m 0775 -p "\$prof"
     mkdir -m 0775 -p "\$gc"
     if [ "\$(stat --printf '%u' \$prof)" != "\$(id -u)" ]; then
@@ -331,7 +331,7 @@ install-nix() {
       >> \$HOME/.nix-channels
     mkdir -p \$HOME/.nix-defexpr
     rm -f \$HOME/.nix-defexpr/channels_root
-    ln -s /nix/var/nix/profiles/per-user/root/channels \\
+    ln -s $dest/var/nix/profiles/per-user/root/channels \\
       \$HOME/.nix-defexpr/channels_root
   fi
   echo "Installed Nix for you. To activate call \\\`nix'."
@@ -340,7 +340,7 @@ install-nix() {
 }
 
 nix() {
-  local profs="/nix/var/nix/profiles/default \$HOME/.nix-profile"
+  local profs="$dest/var/nix/profiles/default \$HOME/.nix-profile"
   # Activate Nix for current user.
   for i in \$profs; do
     export PATH="\$i/bin:\$PATH"
