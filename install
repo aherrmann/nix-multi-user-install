@@ -381,6 +381,25 @@ EOF
   fi
 }
 
+install_chroot() {
+  info "Installing chroot builds"
+  mkdir -p "${dest}/chroot_builds"
+  cat << EOF > "${dest}/chroot_builds/static_bash.nix"
+with import <nixpkgs> {};
+stdenv.lib.overrideDerivation bash (args: {
+  configureFlags = [ args.configureFlags ]
+    ++ [ "--enable-static-link" "--without-bash-malloc" "--disable-nls" ];
+})
+EOF
+  local bash="${dest}/chroot_builds/static_bash"
+  nix-build -o "${dest}/chroot_builds/static_bash" \
+    "${dest}/chroot_builds/static_bash.nix"
+  echo "build-use-chroot = true" \
+    >> /etc/nix/nix.conf
+  echo "build-chroot-dirs = /dev /dev/pts /bin=${bash}/bin" \
+    >> /etc/nix/nix.conf
+}
+
 install_daemon() {
   info "Installing daemon."
   chkconfig --add nix-daemon
@@ -404,6 +423,7 @@ install_nix_files
 init_store_db
 init_root_profile
 configure_nix
+install_chroot
 install_daemon
 activate_nix
 final_message
