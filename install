@@ -405,10 +405,8 @@ install_daemon() {
   chkconfig --add nix-daemon
 }
 
-activate_nix() {
+start_deamon() {
   /etc/init.d/nix-daemon start
-  source /etc/profile.d/nix.sh
-  nix
 }
 
 final_message() {
@@ -425,7 +423,7 @@ init_root_profile
 configure_nix
 install_chroot
 install_daemon
-activate_nix
+start_deamon
 final_message
 
 ## Cleanup ################################################
