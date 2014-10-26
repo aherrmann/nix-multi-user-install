@@ -293,13 +293,13 @@ install_user_profile() {
 #!/bin/sh
 install-nix() {
   # Install Nix for the current user.
-  if [ \$USER = root ]; then
+  if [ "\$USER" = root ]; then
     echo "This is not intended for root." >&2
     return 1
   else
     # Create user profile and gc-roots.
-    local prof=$dest/var/nix/profiles/per-user/\$USER
-    local gc=$dest/var/nix/gcroots/per-user/\$USER
+    local prof="$dest/var/nix/profiles/per-user/\$USER"
+    local gc="$dest/var/nix/gcroots/per-user/\$USER"
     mkdir -m 0775 -p "\$prof"
     mkdir -m 0775 -p "\$gc"
     if [ "\$(stat --printf '%u' \$prof)" != "\$(id -u)" ]; then
@@ -309,14 +309,14 @@ install-nix() {
       echo "warning: Bad ownership on \\\`\$gc'." >&2
     fi
     # Create nix-profile in home dir.
-    rm -f \$HOME/.nix-profile
-    ln -s "\$prof/profile" \$HOME/.nix-profile
+    rm -f "\$HOME/.nix-profile"
+    ln -s "\$prof/profile" "\$HOME/.nix-profile"
     echo "http://nixos.org/channels/nixpkgs-unstable nixpkgs" \\
-      >> \$HOME/.nix-channels
-    mkdir -p \$HOME/.nix-defexpr
-    rm -f \$HOME/.nix-defexpr/channels_root
-    ln -s $dest/var/nix/profiles/per-user/root/channels \\
-      \$HOME/.nix-defexpr/channels_root
+      >> "\$HOME/.nix-channels"
+    mkdir -p "\$HOME/.nix-defexpr"
+    rm -f "\$HOME/.nix-defexpr/channels_root"
+    ln -s "$dest/var/nix/profiles/per-user/root/channels" \\
+      "\$HOME/.nix-defexpr/channels_root"
   fi
   echo "Installed Nix for you. To activate call \\\`nix'."
 
@@ -326,13 +326,17 @@ install-nix() {
 nix() {
   # Note: The order matters!
   # The user-profile should shadow the system profile.
-  local profs="$dest/var/nix/profiles/default \$HOME/.nix-profile"
+  local -a profs=("$dest/var/nix/profiles/default" "\$HOME/.nix-profile")
   # Activate Nix for current user.
-  for i in \$profs; do
+  for i in \${profs[@]}; do
     export PATH="\$i/bin:\$PATH"
-    export MANPATH="\$i/share/man:\$MANPATH"
+    if env | grep -q MANPATH; then
+      # If MANPATH is not set, man will automatically find man-pages
+      # through PATH.
+      export MANPATH="\$i/share/man:\$MANPATH"
+    fi
     local nixpath
-    if [ \$USER == root ]; then
+    if [ "\$USER" == root ]; then
       nixpath="nixpkgs=\$HOME/.nix-defexpr/channels/nixpkgs"
     else
       nixpath="nixpkgs=\$HOME/.nix-defexpr/channels_root/nixpkgs"
