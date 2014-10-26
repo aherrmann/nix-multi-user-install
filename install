@@ -241,7 +241,6 @@ install_nix_files() {
 
 init_store_db() {
   info "Initializing Nix database..."
-  unset NIX_REMOTE
   if ! $nix/bin/nix-store --init; then
     error "Failed to initialize database."
   fi
@@ -446,9 +445,9 @@ configure_nix() {
   local conf="/etc/nix/nix.conf"
   mkdir -p /etc/nix
   if ! [ -e "$conf" ] || confirm "Overwrite \`$conf'?"; then
-    rm /etc/nix/nix.conf
+    rm -f /etc/nix/nix.conf
+    echo "build-users-group = $buildgroup" > /etc/nix/nix.conf
   fi
-  echo "build-users-group = $buildgroup" >> /etc/nix/nix.conf
 }
 
 install_chroot() {
@@ -462,7 +461,7 @@ install_chroot() {
     if [ -f "$BASH_STATIC_NAR" ]; then
       # Override the daemon to avoid signature issues.
       info "Importing static-bash from closure \`$BASH_STATIC_NAR'"
-      env NIX_REMOTE="" "$nix/bin/nix-store" --import < "$BASH_STATIC_NAR"
+      "$nix/bin/nix-store" --import < "$BASH_STATIC_NAR"
     fi
   fi
 
@@ -499,18 +498,18 @@ final_message() {
   info "  and \`nix' to activate it."
 }
 
+unset NIX_REMOTE
 create_users
 install_nix_files
 init_store_db
 init_root_profile
 install_user_profile
+if [ -n "$with_chroot_builds" ]; then
+  install_chroot
+fi
 install_daemon
 configure_nix
 start_deamon
-if [ -n "$with_chroot_builds" ]; then
-  install_chroot
-  restart_daemon
-fi
 final_message
 
 ## Cleanup ################################################
