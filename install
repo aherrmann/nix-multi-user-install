@@ -350,6 +350,15 @@ EOF
 
 install_daemon() {
   local script="/etc/init.d/nix-daemon"
+
+  info "Installing nix-daemon-wrapper"
+  mkdir -p "$dest/local/bin"
+  cat <<EOF >"$dest/local/bin/nix-daemon-wrapper"
+#!/bin/sh
+nohup /root/.nix-profile/bin/nix-daemon &>/dev/null </dev/null &
+EOF
+  chmod +x "$dest/local/bin/nix-daemon-wrapper"
+
   if ! [ -e "$script" ] || confirm "Overwrite \`$script'?"; then
     info "Installing daemon init-script: \`$script'."
     cat > "$script" << EOF
@@ -370,14 +379,13 @@ install_daemon() {
 nixusergroup=$nixusergroup  # Not empty => Members only access to nix-daemon
 LOCKFILE=/var/lock/subsys/nix-daemon
 prog=nix-daemon
-exec=/root/.nix-profile/bin/nix-daemon
+exec=$dest/local/bin/nix-daemon-wrapper
 socket=$dest/var/nix/daemon-socket
 
 start() {
         echo -n "Starting the Nix daemon: "
-        daemon "\$exec" &
+        daemon "\$exec"
         RETVAL=\$?
-        echo
         [ \$RETVAL -eq 0 ] && touch "\$LOCKFILE"
         if [ -n "\$nixusergroup" ]; then
           mkdir -p "\$socket"
