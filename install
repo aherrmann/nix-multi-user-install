@@ -2,7 +2,7 @@
 
 ## Config #################################################
 VERBOSE=true  # Set to true for verbose output
-FORCE=  # Set to true to omit confirmation questions
+FORCE=false  # Set to true to omit confirmation questions
 INSTALL_LOG=nix_multi_user_install.log
 
 ## Tools ##################################################
@@ -32,7 +32,7 @@ error() {
 
 confirm() {
   local choice
-  if [ -z "$FORCE" ]; then
+  if [ "$FORCE" = true ]; then
     echo "$*" >&2
     echo "$(ts) PROMPT: $*" >> ${logfile}
     while true; do
