@@ -272,7 +272,7 @@ init_root_profile() {
   info "Configuring root user default expression \`~/.nix-defexpr'."
   mkdir -p "$HOME/.nix-defexpr"
   rm -f "$HOME/.nix-defexpr/channels"
-  ln -s "$dest/var/nix/profiles/per-user/root/channels" \\
+  ln -s "$dest/var/nix/profiles/per-user/root/channels" \
     "$HOME/.nix-defexpr/channels"
   export NIX_PATH="nixpkgs=$HOME/.nix-defexpr/channels/nixpkgs"
 
