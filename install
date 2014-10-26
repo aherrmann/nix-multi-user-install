@@ -358,17 +358,10 @@ EOF
   fi
 }
 
-configure_nix() {
-  local conf="/etc/nix/nix.conf"
-  mkdir -p /etc/nix
-  if ! [ -e "$conf" ] || confirm "Overwrite \`$conf'?"; then
-    rm /etc/nix/nix.conf
-  fi
-  echo "build-users-group = $buildgroup" >> /etc/nix/nix.conf
-
+install_daemon() {
   local script="/etc/init.d/nix-daemon"
   if ! [ -e "$script" ] || confirm "Overwrite \`$script'?"; then
-    info "Installing \`$script'."
+    info "Installing daemon init-script: \`$script'."
     cat > "$script" << EOF
 #!/bin/bash
 #
@@ -453,6 +446,18 @@ exit \$?
 EOF
   fi
   chmod +x "$script"
+
+  info "Adding daemon to run-levels."
+  chkconfig --add nix-daemon
+}
+
+configure_nix() {
+  local conf="/etc/nix/nix.conf"
+  mkdir -p /etc/nix
+  if ! [ -e "$conf" ] || confirm "Overwrite \`$conf'?"; then
+    rm /etc/nix/nix.conf
+  fi
+  echo "build-users-group = $buildgroup" >> /etc/nix/nix.conf
 }
 
 install_chroot() {
@@ -474,13 +479,9 @@ EOF
     >> /etc/nix/nix.conf
 }
 
-install_daemon() {
-  info "Installing daemon."
-  chkconfig --add nix-daemon
-}
-
 start_deamon() {
   /etc/init.d/nix-daemon start
+  export NIX_REMOTE=daemon
 }
 
 restart_daemon() {
@@ -499,8 +500,8 @@ install_nix_files
 init_store_db
 init_root_profile
 install_user_profile
-configure_nix
 install_daemon
+configure_nix
 start_deamon
 if [ -n "$with_chroot_builds" ]; then
   install_chroot
