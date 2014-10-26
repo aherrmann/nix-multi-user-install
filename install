@@ -476,6 +476,7 @@ EOF
   local bash="${dest}/chroot_builds/static_bash"
   $nix/bin/nix-build -o "${dest}/chroot_builds/static_bash" \
     "${dest}/chroot_builds/static_bash.nix"
+  mkdir -p /etc/nix/
   echo "build-use-chroot = true" \
     >> /etc/nix/nix.conf
   echo "build-chroot-dirs = /dev /dev/pts /bin=${bash}/bin" \
