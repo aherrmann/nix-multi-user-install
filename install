@@ -1,42 +1,56 @@
 #!/bin/bash
 
 ## Config #################################################
-VERBOSE=1  # Set to 1 for verbose output
-FORCE=  # Set to 1 to omit confirmation questions
+VERBOSE=true  # Set to true for verbose output
+FORCE=  # Set to true to omit confirmation questions
+INSTALL_LOG=nix_multi_user_install.log
 
 ## Tools ##################################################
+logfile="$(readlink -f .)/$INSTALL_LOG"
+
+ts() {
+  date '+%F_%R:%S.%N'
+}
+
 info() {
-  if ! [ -z "$VERBOSE" ]; then
-    echo 'info:' $@
+  if [ "$VERBOSE" = true ]; then
+    echo "INFO: $*"
   fi
+  echo "$(ts) INFO: $*" >> ${logfile}
 }
 
 warning() {
-  echo 'warning:' $@ >&2
+  echo "WARNING: $*" >&2
+  echo "$(ts) WARNING: $*" >> ${logfile}
 }
 
 error() {
-  echo 'error:' $@ >&2
+  echo "error: $*" >&2
+  echo "$(ts) ERROR: $*" >> ${logfile}
   exit 1
 }
 
 confirm() {
   local choice
   if [ -z "$FORCE" ]; then
-    echo $@ >&2
+    echo "$*" >&2
+    echo "$(ts) PROMPT: $*" >> ${logfile}
     while true; do
       read -p 'Yes|No|Abort: ' -n 1 choice >&2
       case "$choice" in
         y|Y )
           echo ' continuing...' >&2
+          echo "$(ts) CONTINUE" >> ${logfile}
           return 0
           ;;
         n|N )
           echo ' skipping...' >&2
+          echo "$(ts) SKIP" >> ${logfile}
           return 1
           ;;
         a|A )
           echo ' aborting!!!' >&2
+          echo "$(ts) ABORT" >> ${logfile}
           exit 1
           ;;
         * )
