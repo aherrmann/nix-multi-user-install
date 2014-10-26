@@ -1,12 +1,12 @@
 #!/bin/bash
 
 ## Config #################################################
-verbose=1  # Set to 1 for verbose output
-force=  # Set to 1 to assume user confirmation
+VERBOSE=1  # Set to 1 for verbose output
+FORCE=  # Set to 1 to omit confirmation questions
 
 ## Tools ##################################################
 info() {
-  if ! [ -z "$verbose" ]; then
+  if ! [ -z "$VERBOSE" ]; then
     echo 'info:' $@
   fi
 }
@@ -22,7 +22,7 @@ error() {
 
 confirm() {
   local choice
-  if [ -z "$force" ]; then
+  if [ -z "$FORCE" ]; then
     echo $@ >&2
     while true; do
       read -p 'Yes|No|Abort: ' -n 1 choice >&2
