@@ -3,7 +3,8 @@
 ## Config #################################################
 VERBOSE=true  # Set to true for verbose output
 FORCE=false  # Set to true to omit confirmation questions
-INSTALL_LOG=nix_multi_user_install.log
+INSTALL_LOG=nix_multi_user_install.log  # Write install log here.
+BASH_STATIC_NAR=bash_static.nar  # Check for bash_static closure here.
 
 ## Tools ##################################################
 logfile="$(readlink -f .)/$INSTALL_LOG"
@@ -450,6 +451,18 @@ configure_nix() {
 
 install_chroot() {
   info "Installing chroot builds"
+
+  if [ -n "$BASH_STATIC_NAR" ]; then
+    if [ ! -f "$BASH_STATIC_NAR" ]; then
+      # Give user opportunity to fix missing file issue.
+      confirm "Bash static closure not found at $BASH_STATIC_NAR. Continue?"
+    fi
+    if [ -f "$BASH_STATIC_NAR" ]; then
+      # Override the daemon to avoid signature issues.
+      info "Importing static-bash from closure \`$BASH_STATIC_NAR'"
+      env NIX_REMOTE="" "$nix/bin/nix-store" --import < "$BASH_STATIC_NAR"
+    fi
+  fi
 
   mkdir -p "${dest}/chroot_builds"
   cat << EOF > "${dest}/chroot_builds/static_bash.nix"
