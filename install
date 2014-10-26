@@ -386,6 +386,7 @@ start() {
         echo -n "Starting the Nix daemon: "
         daemon "\$exec"
         RETVAL=\$?
+        echo
         [ \$RETVAL -eq 0 ] && touch "\$LOCKFILE"
         if [ -n "\$nixusergroup" ]; then
           mkdir -p "\$socket"
@@ -397,8 +398,9 @@ start() {
 
 stop() {
         echo -n "Shutting down nix-daemon: "
-        killproc -d 10 "\$exec"
+        killproc -d 10 "\$prog"
         RETVAL=\$?
+        echo
         [ \$RETVAL -eq 0 ] && rm -f "\$LOCKFILE"
         return \$RETVAL
 }
