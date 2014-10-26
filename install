@@ -55,7 +55,7 @@ url="https://nixos.org/releases/nix/nix-${nixver}/${tarball}"
 unpack="nix-binary-tarball-unpack"
 
 build_exists() {
-  return [ -d "$unpack" ]
+  [ -d "$unpack" ]
 }
 obtain_build() {
   if ! type -p curl > /dev/null; then
