@@ -135,6 +135,26 @@ do_checks
 
 
 ## Install Nix Store ######################################
+user_exists() {
+  # Check if user of given name exists.
+  local user="$1"
+  getent passwd | egrep -q "^$user:"
+}
+uid_exists() {
+  # Check if user of given uid exists.
+  local uid="$1"
+  getent passwd | egrep -q "^([^:]*:){2}$uid:"
+}
+group_exists() {
+  # Check if group of given name exists.
+  local group="$1"
+  getent group | egrep -q "^$group:"
+}
+gid_exists() {
+  # Check if group of given gid exists.
+  local gid="$1"
+  getent group | egrep -q "^([^:]*:){2}$gid:"
+}
 create_users() {
   if [ -n "$nixusergroup" ]; then
     info "Checking for nix-user group..."
