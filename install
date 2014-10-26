@@ -54,6 +54,9 @@ tarball="nix-${nixver}-${system}.tar.bz2"
 url="https://nixos.org/releases/nix/nix-${nixver}/${tarball}"
 unpack="nix-binary-tarball-unpack"
 
+build_exists() {
+  return [ -d "$unpack" ]
+}
 obtain_build() {
   if ! type -p curl > /dev/null; then
     error "You do not have \`curl' installed," \
@@ -75,7 +78,10 @@ remove_build() {
   rm -rf "$unpack" "$tarball"
 }
 
-obtain_build
+msg="A Nix-distribution exists already. Overwrite?"
+if ! build_exists || confirm "$msg"; then
+  obtain_build
+fi
 
 
 ## Check & Configure Installer ############################
