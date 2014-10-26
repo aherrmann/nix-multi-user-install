@@ -248,8 +248,10 @@ init_store_db() {
 }
 
 init_root_profile() {
-  info "Configuring root user profile."
-  source $nix/etc/profile.d/nix.sh
+  info "Configuring root user profile \`~/.nix-profile'."
+
+  local prof=$dest/var/nix/profiles/default
+  ln -s \$prof \$HOME/.nix-profile
 
   if ! $nix/bin/nix-env -i $nix; then
     error "Unable to install Nix into default profile."
@@ -259,6 +261,81 @@ init_root_profile() {
     $nix/bin/nix-channel --add http://nixos.org/channels/nixpkgs-unstable
   fi
   $nix/bin/nix-channel --update nixpkgs
+
+  info "Configuring root user default expression \`~/.nix-defexpr'."
+  mkdir -p \$HOME/.nix-defexpr
+  rm -f \$HOME/.nix-defexpr/channels
+  ln -s $dest/var/nix/profiles/per-user/root/channels \\
+    \$HOME/.nix-defexpr/channels
+}
+
+install_user_profile() {
+  local script=/etc/profile.d/nix.sh
+  if ! [ -e "$script" ] || confirm "Overwrite \`$script'?"; then
+    info "Installing \`$script'."
+    cat > "$script" << EOF
+#!/bin/sh
+install-nix() {
+  # Install Nix for the current user.
+  if [ \$USER = root ]; then
+    echo "This is not intended for root." >&2
+    return 1
+  else
+    # Create user profile and gc-roots.
+    local prof=$dest/var/nix/profiles/per-user/\$USER
+    local gc=$dest/var/nix/gcroots/per-user/\$USER
+    mkdir -m 0775 -p "\$prof"
+    mkdir -m 0775 -p "\$gc"
+    if [ "\$(stat --printf '%u' \$prof)" != "\$(id -u)" ]; then
+      echo "warning: Bad ownership on \\\`\$prof'." >&2
+    fi
+    if [ "\$(stat --printf '%u' \$gc)" != "\$(id -u)" ]; then
+      echo "warning: Bad ownership on \\\`\$gc'." >&2
+    fi
+    # Create nix-profile in home dir.
+    rm -f \$HOME/.nix-profile
+    ln -s "\$prof/profile" \$HOME/.nix-profile
+    echo "http://nixos.org/channels/nixpkgs-unstable nixpkgs" \\
+      >> \$HOME/.nix-channels
+    mkdir -p \$HOME/.nix-defexpr
+    rm -f \$HOME/.nix-defexpr/channels_root
+    ln -s $dest/var/nix/profiles/per-user/root/channels \\
+      \$HOME/.nix-defexpr/channels_root
+  fi
+  echo "Installed Nix for you. To activate call \\\`nix'."
+
+  unset -f install-nix
+}
+
+nix() {
+  # Note: The order matters!
+  # The user-profile should shadow the system profile.
+  local profs="$dest/var/nix/profiles/default \$HOME/.nix-profile"
+  # Activate Nix for current user.
+  for i in \$profs; do
+    export PATH="\$i/bin:\$PATH"
+    export MANPATH="\$i/share/man:\$MANPATH"
+    local nixpath
+    if [ \$USER == root ]; then
+      nixpath="nixpkgs=\$HOME/.nix-defexpr/channels/nixpkgs"
+    else
+      nixpath="nixpkgs=\$HOME/.nix-defexpr/channels_root/nixpkgs"
+    fi
+    export NIX_PATH="${NIX_PATH:-$nixpath}"
+  done
+  # Daemon mode?
+  socket=$dest/var/nix/daemon-socket/socket
+  if [ -S "\$socket" ]; then
+    export NIX_REMOTE=daemon
+  else
+    export NIX_REMOTE=
+  fi
+
+  unset -f install-nix
+  unset -f nix
+}
+EOF
+  fi
 }
 
 configure_nix() {
@@ -356,77 +433,6 @@ exit \$?
 EOF
   fi
   chmod +x "$script"
-
-  local script=/etc/profile.d/nix.sh
-  if ! [ -e "$script" ] || confirm "Overwrite \`$script'?"; then
-    info "Installing \`$script'."
-    cat > "$script" << EOF
-#!/bin/sh
-install-nix() {
-  # Install Nix for the current user.
-  if [ \$USER == root ]; then
-    local prof=$dest/var/nix/profiles/default
-    ln -s \$prof \$HOME/.nix-profile
-    mkdir -p \$HOME/.nix-defexpr
-    rm -f \$HOME/.nix-defexpr/channels
-    ln -s $dest/var/nix/profiles/per-user/root/channels \\
-      \$HOME/.nix-defexpr/channels
-  else
-    # Create user profile and gc-roots.
-    local prof=$dest/var/nix/profiles/per-user/\$USER
-    local gc=$dest/var/nix/gcroots/per-user/\$USER
-    mkdir -m 0775 -p "\$prof"
-    mkdir -m 0775 -p "\$gc"
-    if [ "\$(stat --printf '%u' \$prof)" != "\$(id -u)" ]; then
-      echo "warning: Bad ownership on \\\`\$prof'." >&2
-    fi
-    if [ "\$(stat --printf '%u' \$gc)" != "\$(id -u)" ]; then
-      echo "warning: Bad ownership on \\\`\$gc'." >&2
-    fi
-    # Create nix-profile in home dir.
-    rm -f \$HOME/.nix-profile
-    ln -s "\$prof/profile" \$HOME/.nix-profile
-    echo "http://nixos.org/channels/nixpkgs-unstable nixpkgs" \\
-      >> \$HOME/.nix-channels
-    mkdir -p \$HOME/.nix-defexpr
-    rm -f \$HOME/.nix-defexpr/channels_root
-    ln -s $dest/var/nix/profiles/per-user/root/channels \\
-      \$HOME/.nix-defexpr/channels_root
-  fi
-  echo "Installed Nix for you. To activate call \\\`nix'."
-
-  unset -f install-nix
-}
-
-nix() {
-  # Note: The order matters!
-  # The user-profile should shadow the system profile.
-  local profs="$dest/var/nix/profiles/default \$HOME/.nix-profile"
-  # Activate Nix for current user.
-  for i in \$profs; do
-    export PATH="\$i/bin:\$PATH"
-    export MANPATH="\$i/share/man:\$MANPATH"
-    local nixpath
-    if [ \$USER == root ]; then
-      nixpath="nixpkgs=\$HOME/.nix-defexpr/channels/nixpkgs"
-    else
-      nixpath="nixpkgs=\$HOME/.nix-defexpr/channels_root/nixpkgs"
-    fi
-    export NIX_PATH="${NIX_PATH:-$nixpath}"
-  done
-  # Daemon mode?
-  socket=$dest/var/nix/daemon-socket/socket
-  if [ -S "\$socket" ]; then
-    export NIX_REMOTE=daemon
-  else
-    export NIX_REMOTE=
-  fi
-
-  unset -f install-nix
-  unset -f nix
-}
-EOF
-  fi
 }
 
 install_chroot() {
@@ -472,6 +478,7 @@ create_users
 install_nix_files
 init_store_db
 init_root_profile
+install_user_profile
 configure_nix
 install_daemon
 start_deamon
