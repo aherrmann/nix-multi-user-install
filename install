@@ -505,11 +505,11 @@ install_nix_files
 init_store_db
 init_root_profile
 install_user_profile
+install_daemon
+configure_nix
 if [ -n "$with_chroot_builds" ]; then
   install_chroot
 fi
-install_daemon
-configure_nix
 start_deamon
 final_message
 
