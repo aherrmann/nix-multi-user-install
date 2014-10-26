@@ -115,6 +115,7 @@ builduserhome="/var/empty"
 buildusershell="/sbin/nologin"
 numbuildusers=10
 nixusergroup="nixusers"
+with_chroot_builds=1
 
 do_checks
 
@@ -416,6 +417,10 @@ start_deamon() {
   /etc/init.d/nix-daemon start
 }
 
+restart_daemon() {
+  /etc/init.d/nix-daemon restart
+}
+
 final_message() {
   info "Nix was succesfully installed."
   info "To activate Nix in future session execute \`nix'.'"
@@ -428,9 +433,12 @@ install_nix_files
 init_store_db
 init_root_profile
 configure_nix
-install_chroot
 install_daemon
 start_deamon
+if [ -n "$with_chroot_builds" ]; then
+  install_chroot
+  restart_daemon
+fi
 final_message
 
 ## Cleanup ################################################
