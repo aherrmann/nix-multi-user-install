@@ -183,6 +183,7 @@ install_nix_files() {
     for f in $srcstore/*; do
       i="${f#$srcstore/}"
       i_tmp="$dest/store/$i.$$"
+      # Copy items and make sure to not leave any in a partial state.
       if [ -e "$i_tmp" ]; then
         rm -rf "$i_tmp"
       fi
