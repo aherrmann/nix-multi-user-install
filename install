@@ -268,8 +268,9 @@ start() {
         echo
         [ \$RETVAL -eq 0 ] && touch "\$LOCKFILE"
         if [ -n "\$nixusergroup" ]; then
-          chgrp \$nixusergroup \$socket
-          chmod 0770 \$socket
+          mkdir -p "\$socket"
+          chgrp "\$nixusergroup" "\$socket"
+          chmod 0770 "\$socket"
         fi
         return \$RETVAL
 }
