@@ -158,12 +158,10 @@ gid_exists() {
 create_users() {
   if [ -n "$nixusergroup" ]; then
     info "Checking for nix-user group..."
-    if ! egrep -q "^$nixusergroup:" /etc/group; then
-      warning "The nix-user group \`$nixusergroup' does not exist."
-      if confirm "Create it?"; then
-        info "Creating group \`$nixusergroup'..."
-        groupadd $nixusergroup
-      fi
+    msg="The nix-user group \`$nixusergroup' does not exist. Create it?"
+    if ! group_exists "$nixusergroup" && confirm "$msg"; then
+      info "Creating group \`$nixusergroup'..."
+      groupadd $nixusergroup
     fi
   fi
 
@@ -171,13 +169,13 @@ create_users() {
   info "Creating build group and users..."
 
   # Do checks
-  if egrep -q "^$buildgroup:|:$buildgid:[^:]:$" /etc/group; then
+  if group_exists "$buildgroup" || gid_exists "$buildgid"; then
     warning "Group \`$buildgroup', or gid \`$buildgid' exists already."
     exists=1
   fi
   for i in $(seq 1 $numbuildusers); do
     local user=$builduser_$i uid=$(expr $builduid + $i)
-    if egrep -q "^$user:|^([^:]*:){2}$uid:" /etc/passwd; then
+    if user_exists "$user" || uid_exists "$uid"; then
       warning "User \`$user', or uid \`$uid' exists already."
       exists=1
     fi
