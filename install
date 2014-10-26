@@ -250,17 +250,17 @@ init_store_db() {
 init_root_profile() {
   info "Configuring root user profile \`~/.nix-profile'."
 
-  local prof=$dest/var/nix/profiles/default
-  ln -s \$prof \$HOME/.nix-profile
+  local prof="$dest/var/nix/profiles/default"
+  ln -s "$prof" "$HOME/.nix-profile"
 
-  if ! $nix/bin/nix-env -i $nix; then
+  if ! "$nix/bin/nix-env" -i "$nix"; then
     error "Unable to install Nix into default profile."
   fi
 
-  if ! $nix/bin/nix-channel --list | grep -q "^nixpkgs "; then
-    $nix/bin/nix-channel --add http://nixos.org/channels/nixpkgs-unstable
+  if ! "$nix/bin/nix-channel" --list | grep -q "^nixpkgs "; then
+    "$nix/bin/nix-channel" --add http://nixos.org/channels/nixpkgs-unstable
   fi
-  $nix/bin/nix-channel --update nixpkgs
+  "$nix/bin/nix-channel" --update nixpkgs
 
   # DEBUG:
   echo "[DEBUG]"
@@ -269,10 +269,20 @@ init_root_profile() {
   echo "[/DEBUG]"
 
   info "Configuring root user default expression \`~/.nix-defexpr'."
-  mkdir -p \$HOME/.nix-defexpr
-  rm -f \$HOME/.nix-defexpr/channels
-  ln -s $dest/var/nix/profiles/per-user/root/channels \\
-    \$HOME/.nix-defexpr/channels
+  mkdir -p "$HOME/.nix-defexpr"
+  rm -f "$HOME/.nix-defexpr/channels"
+  ln -s "$dest/var/nix/profiles/per-user/root/channels" \\
+    "$HOME/.nix-defexpr/channels"
+  export NIX_PATH="nixpkgs=$HOME/.nix-defexpr/channels/nixpkgs"
+
+  # Set environment variables.
+  local prof="$HOME/.nix-profile"
+  export PATH="$prof/bin:$PATH"
+  if env | grep -q MANPATH; then
+    # If MANPATH is not set, man will automatically find man-pages
+    # through PATH.
+    export MANPATH="$prof/share/man:$MANPATH"
+  fi
 }
 
 install_user_profile() {
