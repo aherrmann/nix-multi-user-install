@@ -374,6 +374,13 @@ nix() {
   for i in \$profs; do
     export PATH="\$i/bin:\$PATH"
     export MANPATH="\$i/share/man:\$MANPATH"
+    local nixpath
+    if [ \$USER == root ]; then
+      nixpath="nixpkgs=\$HOME/.nix-defexpr/channels/nixpkgs"
+    else
+      nixpath="nixpkgs=\$HOME/.nix-defexpr/channels_root/nixpkgs"
+    fi
+    export NIX_PATH="${NIX_PATH:-$nixpath}"
   done
   # Daemon mode?
   socket=$dest/var/nix/daemon-socket/socket
