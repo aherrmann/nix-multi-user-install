@@ -267,6 +267,7 @@ init_root_profile() {
   ls -l ~/.nix-defexpr
   ls -l ~/.nix-defexpr/channels
   echo "[/DEBUG]"
+  confirm "Continue?"
 
   info "Configuring root user default expression \`~/.nix-defexpr'."
   mkdir -p "$HOME/.nix-defexpr"
@@ -462,6 +463,13 @@ configure_nix() {
 
 install_chroot() {
   info "Installing chroot builds"
+
+  # DEBUG:
+  echo "[DEBUG]"
+  echo "About to install chroot builds"
+  echo "[/DEBUG]"
+  confirm "Continue?"
+
   mkdir -p "${dest}/chroot_builds"
   cat << EOF > "${dest}/chroot_builds/static_bash.nix"
 with import <nixpkgs> {};
