@@ -404,7 +404,7 @@ stop() {
 }
 
 rhstatus() {
-        status -l "\$LOCKFILE" "\$exec"
+        status -l "\$LOCKFILE" "\$prog"
 }
 
 case "\$1" in
