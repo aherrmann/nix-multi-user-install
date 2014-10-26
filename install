@@ -90,7 +90,9 @@ obtain_build() {
 }
 
 remove_build() {
-  rm -rf "$unpack" "$tarball"
+  if confirm "Remove temporaries?"; then
+    rm -rf "$unpack" "$tarball"
+  fi
 }
 
 msg="A Nix-distribution exists already. Overwrite?"
