@@ -262,6 +262,12 @@ init_root_profile() {
   fi
   $nix/bin/nix-channel --update nixpkgs
 
+  # DEBUG:
+  echo "[DEBUG]"
+  ls -l ~/.nix-defexpr
+  ls -l ~/.nix-defexpr/channels
+  echo "[/DEBUG]"
+
   info "Configuring root user default expression \`~/.nix-defexpr'."
   mkdir -p \$HOME/.nix-defexpr
   rm -f \$HOME/.nix-defexpr/channels
