@@ -32,7 +32,7 @@ error() {
 
 confirm() {
   local choice
-  if [ "$FORCE" = true ]; then
+  if [ "$FORCE" != true ]; then
     echo "$*" >&2
     echo "$(ts) PROMPT: $*" >> ${logfile}
     while true; do
