@@ -5,6 +5,8 @@ VERBOSE=true  # Set to true for verbose output
 FORCE=false  # Set to true to omit confirmation questions
 INSTALL_LOG=nix_multi_user_install.log  # Write install log here.
 BASH_STATIC_NAR=bash_static.nar  # Check for bash_static closure here.
+NIX_BUILD_CORES=1  # Parallelize builds to that number. (Will be stored)
+NIX_MAX_JOBS=1  # Run max. this many jobs at a time. (Will be stored)
 
 ## Tools ##################################################
 logfile="$(readlink -f .)/$INSTALL_LOG"
@@ -457,6 +459,8 @@ configure_nix() {
   if ! [ -e "$conf" ] || confirm "Overwrite \`$conf'?"; then
     rm -f /etc/nix/nix.conf
     echo "build-users-group = $buildgroup" > /etc/nix/nix.conf
+    echo "build-max-jobs = $NIX_MAX_JOBS" >> /etc/nix/nix.conf
+    echo "build-cores = $NIX_BUILD_CORES" >> /etc/nix/nix.conf
   fi
 }
 
