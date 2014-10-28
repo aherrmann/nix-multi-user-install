@@ -26,7 +26,7 @@
 VERBOSE=true  # Set to true for verbose output
 FORCE=false  # Set to true to omit confirmation questions
 INSTALL_LOG=nix_multi_user_install.log  # Write install log here.
-BASH_STATIC_NAR=bash_static.nar  # Check for bash_static closure here.
+BASH_STATIC_NAR=  # Check for bash_static closure here.
 NIX_BUILD_CORES=1  # Parallelize builds to that number. (Will be stored)
 NIX_MAX_JOBS=1  # Run max. this many jobs at a time. (Will be stored)
 
