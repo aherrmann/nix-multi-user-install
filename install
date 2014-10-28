@@ -523,10 +523,6 @@ start_deamon() {
   export NIX_REMOTE=daemon
 }
 
-restart_daemon() {
-  /etc/init.d/nix-daemon restart
-}
-
 final_message() {
   info "Nix was succesfully installed."
   info "To activate Nix in future session execute \`nix'.'"
