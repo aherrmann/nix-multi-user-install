@@ -338,6 +338,11 @@ install-nix() {
 }
 
 nix() {
+  if [ ! -d "\$HOME/.nix-profile ]; then
+    echo "Nix does not seem to be installed for you, yet." >&2
+    echo "Execute \\\`install-nix' first." >&2
+    return 1
+  fi
   # Note: The order matters!
   # The user-profile should shadow the system profile.
   local -a profs=("$dest/var/nix/profiles/default" "\$HOME/.nix-profile")
