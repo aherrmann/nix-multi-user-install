@@ -88,7 +88,7 @@ confirm() {
 
 ## Obtain Nix Build #######################################
 system="x86_64-linux"
-nixver="1.7"
+nixver="1.10"
 tarball="nix-${nixver}-${system}.tar.bz2"
 url="https://nixos.org/releases/nix/nix-${nixver}/${tarball}"
 unpack="nix-binary-tarball-unpack"
@@ -338,7 +338,7 @@ install-nix() {
 }
 
 nix() {
-  if [ ! -d "\$HOME/.nix-profile ]; then
+  if [ ! -L "\$HOME/.nix-profile" ]; then
     echo "Nix does not seem to be installed for you, yet." >&2
     echo "Execute \\\`install-nix' first." >&2
     return 1
@@ -538,7 +538,7 @@ start_deamon() {
 final_message() {
   info "Nix was succesfully installed."
   info "To activate Nix in future session execute \`nix'.'"
-  info "Normal users should execute \`nix-install' to install Nix,"
+  info "Normal users should execute \`install-nix' to install Nix,"
   info "  and \`nix' to activate it."
 }
 
