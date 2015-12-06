@@ -144,6 +144,17 @@ do_checks() {
   if [ "$(id -u)" -ne 0 ]; then
     error "Need to be root user"
   fi
+
+  if [ -e /etc/nix/nix.conf ]; then
+    local tmp="$(mktemp /etc/nix/nix.conf.XXXXXXXX)"
+    info "Found \`/etc/nix/nix.conf'. Moving it to \`$tmp'..."
+    if confirm "Restore \`/etc/nix/nix.conf' after installation?"; then
+      oldnixconf="$tmp"
+    else
+      oldnixconf=
+    fi
+    mv /etc/nix/nix.conf "$tmp"
+  fi
 }
 
 dest="/nix"
@@ -530,6 +541,13 @@ EOF
     >> /etc/nix/nix.conf
 }
 
+restore_config() {
+  if [ -n "$oldnixconf" ]; then
+    info "Restoring \`/etc/nix/nix.conf'."
+    mv "$oldnixconf" /etc/nix/nix.conf
+  fi
+}
+
 start_deamon() {
   /etc/init.d/nix-daemon start
   export NIX_REMOTE=daemon
@@ -553,6 +571,7 @@ configure_nix
 if [ -n "$with_chroot_builds" ]; then
   install_chroot
 fi
+restore_config
 start_deamon
 final_message
 
